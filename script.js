@@ -88,6 +88,44 @@ function fabricToQuillDelta(fabricJson) {
       return; // ⛔ skip text logic
     }
 
+    //CIRCLE
+    if (obj.type === "circle") {
+      const scaleX = obj.scaleX || 1;
+      const scaleY = obj.scaleY || 1;
+
+      // Use average scale to avoid distortion issues
+      const avgScale = (scaleX + scaleY) / 2;
+
+      const radius = (obj.radius || 0) * avgScale;
+      const width = radius * 2;
+      const height = radius * 2;
+
+      const baseShape = {
+        id: obj.id || crypto.randomUUID(),
+        position: {
+          dx: obj.left || 0,
+          dy: obj.top || 0,
+        },
+        color: hexToArgbNumber(obj.stroke || obj.fill),
+        rotation: obj.angle || 0,
+        thickness: obj.strokeWidth
+          ? mapThickness(obj.strokeWidth)
+          : 0,
+        isFilled: !!obj.fill,
+      };
+
+      result.push({
+        ...baseShape,
+        shapeType: "circle",
+        radius,
+        width,
+        height,
+        type: "circle",
+      });
+
+      return; // ⛔ skip text logic
+    }
+
 
     if (!obj.text) return;
 
@@ -190,7 +228,7 @@ function cleanAttributes(attr) {
   return Object.keys(cleaned).length ? cleaned : undefined;
 }
 
-const fabricData = {"version":"3.6.3","objects":[{"type":"group","version":"3.6.3","originX":"left","originY":"top","left":0,"top":0,"width":0,"height":0,"fill":"rgb(0,0,0)","stroke":null,"strokeWidth":0,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"dontMakeSelectable":true,"id":"objectGroup","groupable":false,"objectCaching":false,"objects":[]},{"type":"rect","version":"3.6.3","originX":"left","originY":"top","left":588,"top":151,"width":182,"height":182,"fill":null,"stroke":"#dd370e","strokeWidth":5,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"rx":0,"ry":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1775809234786","objectCaching":true},{"type":"rect","version":"3.6.3","originX":"left","originY":"top","left":909,"top":173,"width":467,"height":147,"fill":null,"stroke":"#e1a393","strokeWidth":10,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"rx":0,"ry":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1775810122172","objectCaching":true},{"type":"rect","version":"3.6.3","originX":"left","originY":"top","left":1024,"top":60,"width":316,"height":316,"fill":null,"stroke":"#e1a393","strokeWidth":10,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"rx":0,"ry":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1775810131443","objectCaching":true}],"perPixelTargetFind":false,"centeredRotation":false}
+const fabricData = {"version":"3.6.3","objects":[{"type":"group","version":"3.6.3","originX":"left","originY":"top","left":0,"top":0,"width":0,"height":0,"fill":"rgb(0,0,0)","stroke":null,"strokeWidth":0,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"dontMakeSelectable":true,"id":"objectGroup","groupable":false,"objectCaching":false,"objects":[]},{"type":"circle","version":"3.6.3","originX":"center","originY":"center","left":672,"top":281,"width":262.05,"height":262.05,"fill":"","stroke":"#2340d1","strokeWidth":1,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"radius":131.0267148332736,"startAngle":0,"endAngle":6.283185307179586,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1775812793831","objectCaching":true},{"type":"rect","version":"3.6.3","originX":"left","originY":"top","left":426,"top":243,"width":542,"height":73,"fill":null,"stroke":"#2340d1","strokeWidth":10,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"rx":0,"ry":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1775812806121","objectCaching":true}],"perPixelTargetFind":false,"centeredRotation":false}
 
 
 let result = fabricToQuillDelta(fabricData)
