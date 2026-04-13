@@ -15,25 +15,58 @@ function mapThickness(strokeWidth) {
   return 5;
 }
 
-function hexToArgbNumber(hex) {
-  if (!hex) return undefined;
+function isHighlighter(obj) {
+  if (!obj.stroke) return false;
 
-  // Remove #
-  hex = hex.replace("#", "");
+  // Detect rgba with alpha < 1
+  const match = obj.stroke.match(/rgba?\(([^)]+)\)/);
+  if (!match) return false;
 
-  // Convert to full RGB if shorthand
-  if (hex.length === 3) {
-    hex = hex.split("").map(c => c + c).join("");
+  const parts = match[1].split(",").map(Number);
+
+  // rgba => 4 values, last is alpha
+  if (parts.length === 4 && parts[3] < 1) return true;
+
+  // fallback: very thick stroke
+  if (obj.strokeWidth >= 15) return true;
+
+  return false;
+}
+
+
+function colorToArgbNumber(color) {
+  if (!color) return undefined;
+
+  // HEX
+  if (color.startsWith("#")) {
+    let hex = color.replace("#", "");
+
+    if (hex.length === 3) {
+      hex = hex.split("").map(c => c + c).join("");
+    }
+
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const a = 255;
+
+    return ((a << 24) | (r << 16) | (g << 8) | b) >>> 0;
   }
 
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
+  // RGBA / RGB
+  const match = color.match(/rgba?\(([^)]+)\)/);
+  if (match) {
+    const parts = match[1].split(",").map(Number);
 
-  const a = 255; // fully opaque
+    const r = parts[0];
+    const g = parts[1];
+    const b = parts[2];
+    const a = parts.length === 4 ? Math.round(parts[3] * 255) : 255;
 
-  // Convert to ARGB number
-  return ((a << 24) | (r << 16) | (g << 8) | b) >>> 0;
+    return ((a << 24) | (r << 16) | (g << 8) | b) >>> 0;
+  }
+
+  return undefined;
 }
 
 
@@ -55,7 +88,7 @@ function fabricToQuillDelta(fabricJson) {
           dx: obj.left || 0,
           dy: obj.top || 0,
         },
-        color: hexToArgbNumber(obj.stroke || obj.fill),
+        color: colorToArgbNumber(obj.stroke || obj.fill),
         rotation: obj.angle || 0,
         thickness: obj.strokeWidth
           ? mapThickness(obj.strokeWidth)
@@ -108,7 +141,7 @@ function fabricToQuillDelta(fabricJson) {
           dx: obj.left || 0,
           dy: obj.top || 0,
         },
-        color: hexToArgbNumber(obj.stroke || obj.fill),
+        color: colorToArgbNumber(obj.stroke || obj.fill),
         rotation: obj.angle || 0,
         thickness: obj.strokeWidth
           ? mapThickness(obj.strokeWidth)
@@ -146,7 +179,7 @@ function fabricToQuillDelta(fabricJson) {
           dx: obj.left || 0,
           dy: obj.top || 0,
         },
-        color: hexToArgbNumber(obj.stroke || obj.fill),
+        color: colorToArgbNumber(obj.stroke || obj.fill),
         rotation: obj.angle || 0,
         thickness: obj.strokeWidth
           ? mapThickness(obj.strokeWidth)
@@ -194,7 +227,7 @@ function fabricToQuillDelta(fabricJson) {
           position: { dx: centerX, dy: centerY },
           start: { dx: centerX, dy: centerY - halfHeight },
           end: { dx: centerX, dy: centerY + halfHeight },
-          color: hexToArgbNumber(obj.stroke),
+          color: colorToArgbNumber(obj.stroke),
           rotation: obj.angle || 0,
           thickness: obj.strokeWidth ? mapThickness(obj.strokeWidth) : 0,
           type: "verticalLine",
@@ -210,7 +243,7 @@ function fabricToQuillDelta(fabricJson) {
           position: { dx: centerX, dy: centerY },
           start: { dx: centerX - halfWidth, dy: centerY },
           end: { dx: centerX + halfWidth, dy: centerY },
-          color: hexToArgbNumber(obj.stroke),
+          color: colorToArgbNumber(obj.stroke),
           rotation: obj.angle || 0,
           thickness: obj.strokeWidth ? mapThickness(obj.strokeWidth) : 0,
           type: "horizontalLine",
@@ -233,7 +266,7 @@ function fabricToQuillDelta(fabricJson) {
             dy: centerY + y2,
           },
 
-          color: hexToArgbNumber(obj.stroke),
+          color: colorToArgbNumber(obj.stroke),
           rotation: obj.angle || 0,
           thickness: obj.strokeWidth ? mapThickness(obj.strokeWidth) : 0,
           type: "angledLine",
@@ -244,47 +277,35 @@ function fabricToQuillDelta(fabricJson) {
     }
 
 
-    // ✏️ PENCIL (IMPROVED - CURVE SAMPLING)
+    // ✏️ PENCIL / 🖍️ HIGHLIGHTER
     if (obj.type === "path") {
       const points = [];
-
-      const left = obj.left || 0;
-      const top = obj.top || 0;
 
       let currentX = 0;
       let currentY = 0;
 
-      const STEPS = 10; // 🔥 smoothness (increase for better quality)
+      const STEPS = 10;
 
       obj.path.forEach((segment) => {
         const cmd = segment[0];
 
-        // MOVE
         if (cmd === "M") {
           currentX = segment[1];
           currentY = segment[2];
 
-          points.push({
-            dx: currentX,
-            dy: currentY,
-          });
+          points.push({ dx: currentX, dy: currentY });
         }
 
-        // LINE
         else if (cmd === "L") {
           const x = segment[1];
           const y = segment[2];
 
-          points.push({
-            dx: x,
-            dy: y,
-          });
+          points.push({ dx: x, dy: y });
 
           currentX = x;
           currentY = y;
         }
 
-        // QUADRATIC CURVE
         else if (cmd === "Q") {
           const cx = segment[1];
           const cy = segment[2];
@@ -302,17 +323,13 @@ function fabricToQuillDelta(fabricJson) {
               2 * (1 - t) * t * cy +
               t * t * y;
 
-            points.push({
-              dx: xt,
-              dy: yt,
-            });
+            points.push({ dx: xt, dy: yt });
           }
 
           currentX = x;
           currentY = y;
         }
 
-        // CUBIC CURVE
         else if (cmd === "C") {
           const cx1 = segment[1];
           const cy1 = segment[2];
@@ -334,10 +351,7 @@ function fabricToQuillDelta(fabricJson) {
               3 * (1 - t) * t * t * cy2 +
               t * t * t * y;
 
-            points.push({
-              dx: xt,
-              dy: yt,
-            });
+            points.push({ dx: xt, dy: yt });
           }
 
           currentX = x;
@@ -347,24 +361,31 @@ function fabricToQuillDelta(fabricJson) {
 
       if (!points.length) return;
 
+      const isHL = isHighlighter(obj);
+
       result.push({
         id: obj.id || crypto.randomUUID(),
 
         drawPoints: points,
 
-        paint: {
-          color: hexToArgbNumber(obj.stroke),
-          strokeWidth: obj.strokeWidth || 1,
-          style: 1,
-          strokeCap: obj.strokeLineCap === "round" ? 1 : 0,
-        },
+        paint: isHL
+          ? {
+            color: colorToArgbNumber(obj.stroke),
+            strokeWidth: obj.strokeWidth || 1,
+          }
+          : {
+            color: colorToArgbNumber(obj.stroke),
+            strokeWidth: obj.strokeWidth || 1,
+            style: 1,
+            strokeCap: obj.strokeLineCap === "round" ? 1 : 0,
+          },
 
         position: {
           dx: points[0].dx,
           dy: points[0].dy,
         },
 
-        type: "pencil",
+        type: isHL ? "highlighter" : "pencil",
       });
 
       return;
@@ -471,217 +492,7 @@ function cleanAttributes(attr) {
   return Object.keys(cleaned).length ? cleaned : undefined;
 }
 
-const fabricData = {
-  "version": "3.6.3",
-  "objects": [
-    {
-      "type": "group",
-      "version": "3.6.3",
-      "originX": "left",
-      "originY": "top",
-      "left": 0,
-      "top": 0,
-      "width": 0,
-      "height": 0,
-      "fill": "rgb(0,0,0)",
-      "stroke": null,
-      "strokeWidth": 0,
-      "strokeDashArray": null,
-      "strokeLineCap": "butt",
-      "strokeDashOffset": 0,
-      "strokeLineJoin": "miter",
-      "strokeMiterLimit": 4,
-      "scaleX": 1,
-      "scaleY": 1,
-      "angle": 0,
-      "flipX": false,
-      "flipY": false,
-      "opacity": 1,
-      "shadow": null,
-      "visible": true,
-      "clipTo": null,
-      "backgroundColor": "",
-      "fillRule": "nonzero",
-      "paintFirst": "fill",
-      "globalCompositeOperation": "source-over",
-      "transformMatrix": null,
-      "skewX": 0,
-      "skewY": 0,
-      "selectable": false,
-      "perPixelTargetFind": true,
-      "centeredRotation": true,
-      "dontMakeSelectable": true,
-      "id": "objectGroup",
-      "groupable": false,
-      "objectCaching": false,
-      "objects": []
-    },
-    {
-      "type": "path",
-      "version": "3.6.3",
-      "originX": "left",
-      "originY": "top",
-      "left": 542.13,
-      "top": 109,
-      "width": 143.88,
-      "height": 145,
-      "fill": null,
-      "stroke": "#904c4c",
-      "strokeWidth": 6,
-      "strokeDashArray": null,
-      "strokeLineCap": "round",
-      "strokeDashOffset": 0,
-      "strokeLineJoin": "round",
-      "strokeMiterLimit": 10,
-      "scaleX": 1,
-      "scaleY": 1,
-      "angle": 0,
-      "flipX": false,
-      "flipY": false,
-      "opacity": 1,
-      "shadow": null,
-      "visible": true,
-      "clipTo": null,
-      "backgroundColor": "",
-      "fillRule": "nonzero",
-      "paintFirst": "fill",
-      "globalCompositeOperation": "source-over",
-      "transformMatrix": null,
-      "skewX": 0,
-      "skewY": 0,
-      "selectable": false,
-      "perPixelTargetFind": true,
-      "centeredRotation": true,
-      "id": "0binuM0-1776061494776",
-      "objectCaching": true,
-      "path": [
-        ["M", 689.006, 203],
-        ["Q", 689, 203, 688.5, 203],
-        ["Q", 688, 203, 687, 203],
-        ["Q", 686, 203, 684, 203],
-        ["Q", 682, 203, 681, 203],
-        ["Q", 680, 203, 678, 203],
-        ["Q", 676, 203, 674, 203],
-        ["Q", 672, 203, 670.5, 203],
-        ["Q", 669, 203, 667, 203],
-        ["Q", 665, 203, 664.5, 203.5],
-        ["Q", 664, 204, 662.5, 204],
-        ["Q", 661, 204, 659, 204],
-        ["Q", 657, 204, 655.5, 204],
-        ["Q", 654, 204, 651.5, 204],
-        ["Q", 649, 204, 646.5, 204],
-        ["Q", 644, 204, 640.5, 204],
-        ["Q", 637, 204, 633.5, 204],
-        ["Q", 630, 204, 627.5, 204],
-        ["Q", 625, 204, 622.5, 204],
-        ["Q", 620, 204, 616, 204],
-        ["Q", 612, 204, 609, 204],
-        ["Q", 606, 204, 603, 204],
-        ["Q", 600, 204, 596, 204],
-        ["Q", 592, 204, 589, 204],
-        ["Q", 586, 204, 582.5, 204.5],
-        ["Q", 579, 205, 575.5, 205],
-        ["Q", 572, 205, 570, 205],
-        ["Q", 568, 205, 566, 205],
-        ["Q", 564, 205, 562, 205.5],
-        ["Q", 560, 206, 557, 206],
-        ["Q", 554, 206, 553, 206.5],
-        ["Q", 552, 207, 550, 207],
-        ["Q", 548, 207, 547, 207],
-        ["Q", 546, 207, 545.5, 207],
-        ["Q", 545, 207, 545.5, 207],
-        ["Q", 546, 207, 546.5, 206.5],
-        ["Q", 547, 206, 547.5, 205.5],
-        ["Q", 548, 205, 548.5, 204],
-        ["Q", 549, 203, 549.5, 202.5],
-        ["Q", 550, 202, 550, 201.5],
-        ["Q", 550, 201, 550.5, 200.5],
-        ["Q", 551, 200, 551.5, 198.5],
-        ["Q", 552, 197, 552.5, 196],
-        ["Q", 553, 195, 554, 194],
-        ["Q", 555, 193, 556, 190],
-        ["Q", 557, 187, 558.5, 185.5],
-        ["Q", 560, 184, 562, 180.5],
-        ["Q", 564, 177, 566.5, 175],
-        ["Q", 569, 173, 571, 170],
-        ["Q", 573, 167, 576, 164],
-        ["Q", 579, 161, 581.5, 159],
-        ["Q", 584, 157, 587, 155],
-        ["Q", 590, 153, 592, 151],
-        ["Q", 594, 149, 595.5, 147.5],
-        ["Q", 597, 146, 598.5, 145],
-        ["Q", 600, 144, 602.5, 142],
-        ["Q", 605, 140, 607, 138.5],
-        ["Q", 609, 137, 612, 135],
-        ["Q", 615, 133, 617.5, 131],
-        ["Q", 620, 129, 623, 127],
-        ["Q", 626, 125, 628.5, 123],
-        ["Q", 631, 121, 633.5, 119.5],
-        ["Q", 636, 118, 637.5, 116.5],
-        ["Q", 639, 115, 639.5, 114.5],
-        ["Q", 640, 114, 641, 113.5],
-        ["Q", 642, 113, 642.5, 113],
-        ["Q", 643, 113, 643, 112.5],
-        ["Q", 643, 112, 643.5, 112],
-        ["Q", 644, 112, 644, 112.5],
-        ["Q", 644, 113, 644, 113.5],
-        ["Q", 644, 114, 644, 114.5],
-        ["Q", 644, 115, 644, 116],
-        ["Q", 644, 117, 643.5, 118],
-        ["Q", 643, 119, 643, 120],
-        ["Q", 643, 121, 642.5, 122],
-        ["Q", 642, 123, 641.5, 124],
-        ["Q", 641, 125, 641, 125.5],
-        ["Q", 641, 126, 640.5, 127],
-        ["Q", 640, 128, 640, 128.5],
-        ["Q", 640, 129, 639.5, 129.5],
-        ["Q", 639, 130, 638.5, 131.5],
-        ["Q", 638, 133, 637.5, 134],
-        ["Q", 637, 135, 636.5, 136],
-        ["Q", 636, 137, 635, 139],
-        ["Q", 634, 141, 633.5, 142.5],
-        ["Q", 633, 144, 632.5, 146.5],
-        ["Q", 632, 149, 632, 150.5],
-        ["Q", 632, 152, 631.5, 154.5],
-        ["Q", 631, 157, 630, 159.5],
-        ["Q", 629, 162, 628.5, 164.5],
-        ["Q", 628, 167, 628, 169],
-        ["Q", 628, 171, 628, 172.5],
-        ["Q", 628, 174, 627, 176],
-        ["Q", 626, 178, 625.5, 179.5],
-        ["Q", 625, 181, 624.5, 183],
-        ["Q", 624, 185, 624, 187],
-        ["Q", 624, 189, 623, 191],
-        ["Q", 622, 193, 621.5, 195],
-        ["Q", 621, 197, 620.5, 200],
-        ["Q", 620, 203, 620, 205],
-        ["Q", 620, 207, 620, 210],
-        ["Q", 620, 213, 620, 215.5],
-        ["Q", 620, 218, 620, 220],
-        ["Q", 620, 222, 620, 223.5],
-        ["Q", 620, 225, 620, 227],
-        ["Q", 620, 229, 620, 230],
-        ["Q", 620, 231, 620, 232],
-        ["Q", 620, 233, 620, 234.5],
-        ["Q", 620, 236, 620, 237],
-        ["Q", 620, 238, 620.5, 239.5],
-        ["Q", 621, 241, 621.5, 243],
-        ["Q", 622, 245, 622, 245.5],
-        ["Q", 622, 246, 622.5, 247.5],
-        ["Q", 623, 249, 623.5, 250.5],
-        ["Q", 624, 252, 624, 252.5],
-        ["Q", 624, 253, 624, 253.5],
-        ["Q", 624, 254, 624, 254.5],
-        ["Q", 624, 255, 624, 255.5],
-        ["Q", 624, 256, 624, 256.5],
-        ["Q", 624, 257, 624.5, 257],
-        ["L", 625.006, 257]
-      ]
-    }
-  ],
-  "perPixelTargetFind": false,
-  "centeredRotation": false
-}
+const fabricData = {"version":"3.6.3","objects":[{"type":"group","version":"3.6.3","originX":"left","originY":"top","left":0,"top":0,"width":0,"height":0,"fill":"rgb(0,0,0)","stroke":null,"strokeWidth":0,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"dontMakeSelectable":true,"id":"objectGroup","groupable":false,"objectCaching":false,"objects":[]},{"type":"path","version":"3.6.3","originX":"left","originY":"top","left":551.98,"top":198,"width":91.04,"height":13,"fill":null,"stroke":"rgba(255,0,0,0.4)","strokeWidth":20,"strokeDashArray":null,"strokeLineCap":"round","strokeDashOffset":0,"strokeLineJoin":"round","strokeMiterLimit":10,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776071599732","objectCaching":true,"path":[["M",561.98,210],["Q",562,210,562,209.5],["Q",562,209,562.5,209],["Q",563,209,563.5,209],["Q",564,209,564.5,208.5],["Q",565,208,566.5,208],["Q",568,208,569.5,208],["Q",571,208,571.5,208],["Q",572,208,573,208],["Q",574,208,575,208],["Q",576,208,577,208],["Q",578,208,578.5,208.5],["Q",579,209,580,209],["Q",581,209,582,209],["Q",583,209,583.5,209],["Q",584,209,584.5,209],["Q",585,209,586.5,209],["Q",588,209,588.5,209],["Q",589,209,590,209],["Q",591,209,591.5,209],["Q",592,209,593.5,209],["Q",595,209,595.5,209],["Q",596,209,596.5,209],["Q",597,209,597.5,209],["Q",598,209,598.5,209.5],["Q",599,210,599.5,210],["Q",600,210,600.5,210],["Q",601,210,602,210],["Q",603,210,603.5,210],["Q",604,210,605.5,210],["Q",607,210,607.5,210],["Q",608,210,608.5,210.5],["Q",609,211,609.5,211],["Q",610,211,611,211],["Q",612,211,612.5,211],["Q",613,211,614,211.5],["Q",615,212,615.5,212],["Q",616,212,616.5,212],["Q",617,212,617.5,212],["Q",618,212,619,212.5],["Q",620,213,621,213],["Q",622,213,622.5,213],["Q",623,213,624,213],["Q",625,213,625.5,213],["Q",626,213,626.5,213],["Q",627,213,627.5,213],["Q",628,213,628,213.5],["Q",628,214,629,214],["Q",630,214,630.5,215],["Q",631,216,631.5,216],["Q",632,216,632.5,216],["Q",633,216,633.5,216],["Q",634,216,635,216],["Q",636,216,636,216.5],["Q",636,217,637,217],["Q",638,217,639,217],["Q",640,217,640.5,217.5],["Q",641,218,641.5,218],["Q",642,218,642.5,218],["Q",643,218,643.5,218.5],["Q",644,219,644.5,219],["Q",645,219,645.5,219],["Q",646,219,647,219.5],["Q",648,220,648.5,220],["Q",649,220,649.5,220.5],["Q",650,221,650.5,221],["Q",651,221,651.5,221],["Q",652,221,652.5,221],["L",653.02,221]]},{"type":"textbox","version":"3.6.3","originX":"left","originY":"top","left":598,"top":199,"width":34.52,"height":31.64,"fill":"#2b4db6","stroke":null,"strokeWidth":1,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"text":"hi","fontSize":"28","fontWeight":"bold","fontFamily":"Verdana","fontStyle":"normal","lineHeight":1.16,"underline":true,"overline":false,"linethrough":false,"textAlign":"left","textBackgroundColor":"","charSpacing":0,"minWidth":20,"splitByGrapheme":false,"selectable":false,"perPixelTargetFind":false,"centeredRotation":true,"id":"0binuM0-1776071586882","groupable":false,"objectCaching":true,"styles":{}}],"perPixelTargetFind":false,"centeredRotation":false}
 
 
 
@@ -692,5 +503,5 @@ const output = fabricToQuillDelta(fabricData)
 
 fs.writeFileSync(
   "whiteboard.json",
-  JSON.stringify(JSON.stringify(output, null, 2))
+  (JSON.stringify(output, null, 2))
 );
