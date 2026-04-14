@@ -221,12 +221,14 @@ function fabricToQuillDelta(fabricJson) {
       // ✅ VERTICAL
       if (isVertical) {
         const halfHeight = Math.abs(y2 - y1) / 2;
+        const startDy = centerY - halfHeight;
+        const endDy = centerY + halfHeight;
 
         result.push({
           id: obj.id || crypto.randomUUID(),
-          position: { dx: centerX, dy: centerY },
-          start: { dx: centerX, dy: centerY - halfHeight },
-          end: { dx: centerX, dy: centerY + halfHeight },
+          position: { dx: centerX, dy: startDy },
+          start: { dx: centerX, dy: startDy },
+          end: { dx: centerX, dy: endDy },
           color: colorToArgbNumber(obj.stroke),
           rotation: obj.angle || 0,
           thickness: obj.strokeWidth ? mapThickness(obj.strokeWidth) : 0,
@@ -237,12 +239,14 @@ function fabricToQuillDelta(fabricJson) {
       // ✅ HORIZONTAL
       else if (isHorizontal) {
         const halfWidth = Math.abs(x2 - x1) / 2;
+        const startDx = centerX - halfWidth;
+        const endDx = centerX + halfWidth;
 
         result.push({
           id: obj.id || crypto.randomUUID(),
-          position: { dx: centerX, dy: centerY },
-          start: { dx: centerX - halfWidth, dy: centerY },
-          end: { dx: centerX + halfWidth, dy: centerY },
+          position: { dx: startDx, dy: centerY },
+          start: { dx: startDx, dy: centerY },
+          end: { dx: endDx, dy: centerY },
           color: colorToArgbNumber(obj.stroke),
           rotation: obj.angle || 0,
           thickness: obj.strokeWidth ? mapThickness(obj.strokeWidth) : 0,
@@ -252,20 +256,19 @@ function fabricToQuillDelta(fabricJson) {
 
       // ✅ ANGLED LINE (NEW)
       else {
+        const startDx = centerX + x1;
+        const startDy = centerY + y1;
+        const endDx = centerX + x2;
+        const endDy = centerY + y2;
+
         result.push({
           id: obj.id || crypto.randomUUID(),
-          position: { dx: centerX, dy: centerY },
-
-          // 🔥 Key fix: use relative coords from center
-          start: {
-            dx: centerX + x1,
-            dy: centerY + y1,
+          position: {
+            dx: Math.min(startDx, endDx), // top-left of bounding box
+            dy: Math.min(startDy, endDy),
           },
-          end: {
-            dx: centerX + x2,
-            dy: centerY + y2,
-          },
-
+          start: { dx: startDx, dy: startDy },
+          end: { dx: endDx, dy: endDy },
           color: colorToArgbNumber(obj.stroke),
           rotation: obj.angle || 0,
           thickness: obj.strokeWidth ? mapThickness(obj.strokeWidth) : 0,
@@ -492,7 +495,8 @@ function cleanAttributes(attr) {
   return Object.keys(cleaned).length ? cleaned : undefined;
 }
 
-const fabricData = {"version":"3.6.3","objects":[{"type":"group","version":"3.6.3","originX":"left","originY":"top","left":0,"top":0,"width":0,"height":0,"fill":"rgb(0,0,0)","stroke":null,"strokeWidth":0,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"dontMakeSelectable":true,"id":"objectGroup","groupable":false,"objectCaching":false,"objects":[]},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":586,"top":247.5,"width":0,"height":155,"fill":"rgb(0,0,0)","stroke":"#850505","strokeWidth":5,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776080322500","objectCaching":true,"x1":0,"x2":0,"y1":77.5,"y2":-77.5},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":689,"top":231,"width":206,"height":162,"fill":"rgb(0,0,0)","stroke":"#850505","strokeWidth":5,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776080328323","objectCaching":true,"x1":103,"x2":-103,"y1":81,"y2":-81},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":495,"top":235.5,"width":156,"height":173,"fill":"rgb(0,0,0)","stroke":"#850505","strokeWidth":5,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776080331076","objectCaching":true,"x1":-78,"x2":78,"y1":86.5,"y2":-86.5}],"perPixelTargetFind":false,"centeredRotation":false}
+
+const fabricData = {"version":"3.6.3","objects":[{"type":"group","version":"3.6.3","originX":"left","originY":"top","left":0,"top":0,"width":0,"height":0,"fill":"rgb(0,0,0)","stroke":null,"strokeWidth":0,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"dontMakeSelectable":true,"id":"objectGroup","groupable":false,"objectCaching":false,"objects":[]},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":666,"top":273.5,"width":0,"height":151,"fill":"rgb(0,0,0)","stroke":"#ff0000","strokeWidth":1,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776145003781","objectCaching":true,"x1":0,"x2":0,"y1":-75.5,"y2":75.5},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":747.5,"top":261,"width":159,"height":124,"fill":"rgb(0,0,0)","stroke":"#ff0000","strokeWidth":7,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776145014264","objectCaching":true,"x1":-79.5,"x2":79.5,"y1":-62,"y2":62},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":718.5,"top":301.5,"width":211,"height":47,"fill":"rgb(0,0,0)","stroke":"#ff0000","strokeWidth":7,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776145017868","objectCaching":true,"x1":-105.5,"x2":105.5,"y1":-23.5,"y2":23.5},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":641,"top":309,"width":52,"height":76,"fill":"rgb(0,0,0)","stroke":"#ff0000","strokeWidth":7,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776145021005","objectCaching":true,"x1":-26,"x2":26,"y1":-38,"y2":38},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":693,"top":191,"width":154,"height":0,"fill":"rgb(0,0,0)","stroke":"#ff0000","strokeWidth":7,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776145026995","objectCaching":true,"x1":-77,"x2":77,"y1":0,"y2":0},{"type":"line","version":"3.6.3","originX":"center","originY":"center","left":724,"top":377,"width":148,"height":0,"fill":"rgb(0,0,0)","stroke":"#ff0000","strokeWidth":7,"strokeDashArray":null,"strokeLineCap":"butt","strokeDashOffset":0,"strokeLineJoin":"miter","strokeMiterLimit":4,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"shadow":null,"visible":true,"clipTo":null,"backgroundColor":"","fillRule":"nonzero","paintFirst":"fill","globalCompositeOperation":"source-over","transformMatrix":null,"skewX":0,"skewY":0,"selectable":false,"perPixelTargetFind":true,"centeredRotation":true,"id":"0binuM0-1776145028827","objectCaching":true,"x1":-74,"x2":74,"y1":0,"y2":0}],"perPixelTargetFind":false,"centeredRotation":false}
 
 
 
